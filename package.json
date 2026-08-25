@@ -15,8 +15,9 @@
     "check": "biome check"
   },
   "dependencies": {
-    "@clerk/tanstack-react-start": "^1.4.21",
+    "@clerk/tanstack-react-start": "^1.5.8",
     "@faker-js/faker": "^10.3.0",
+    "@posthog/react": "^1.10.4",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/match-sorter-utils": "latest",
     "@tanstack/react-devtools": "latest",
@@ -30,6 +31,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.577.0",
+    "posthog-js": "^1.419.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.0.2",
@@ -55,5 +57,8 @@
       "esbuild",
       "lightningcss"
     ]
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
   }
 }
