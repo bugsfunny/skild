@@ -1,3 +1,4 @@
+import { usePostHog } from "@posthog/react";
 import { Link } from "@tanstack/react-router";
 import {
 	ArrowBigUp,
@@ -22,6 +23,7 @@ type SkillCardProps = {
 };
 
 const SkillCard = ({
+	id,
 	createdAt,
 	description,
 	installCommand,
@@ -29,6 +31,7 @@ const SkillCard = ({
 	title,
 	authorEmail,
 }: SkillCardProps) => {
+	const posthog = usePostHog();
 	const [copied, setCopied] = useState(false);
 
 	const category = tags[0] ?? "General";
@@ -36,6 +39,10 @@ const SkillCard = ({
 	const handleCopy = async () => {
 		try {
 			await navigator.clipboard.writeText(installCommand);
+			posthog.capture("skill_install_command_copied", {
+				skill_id: id,
+				category,
+			});
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		} catch {

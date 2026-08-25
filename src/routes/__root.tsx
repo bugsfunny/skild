@@ -1,3 +1,5 @@
+import { ClerkProvider, useUser } from "@clerk/tanstack-react-start";
+import { PostHogProvider, usePostHog } from "@posthog/react";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import {
@@ -6,9 +8,9 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { useEffect, useRef } from "react";
 import Crosshair from "../components/Crosshair";
 import Navbar from "../components/Navbar";
-import ClerkProvider from "../integrations/clerk/provider";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
 
@@ -17,6 +19,70 @@ interface MyRouterContext {
 }
 
 const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getItem('theme');var mode=(stored==='light'||stored==='dark'||stored==='auto')?stored:'auto';var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var resolved=mode==='auto'?(prefersDark?'dark':'light'):mode;var root=document.documentElement;root.classList.remove('light','dark');root.classList.add(resolved);if(mode==='auto'){root.removeAttribute('data-theme')}else{root.setAttribute('data-theme',mode)}root.style.colorScheme=resolved;}catch(e){}})();`;
+
+const posthogProjectToken = import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN;
+const posthogHost = import.meta.env.VITE_PUBLIC_POSTHOG_HOST;
+
+function PostHogRoot({ children }: { children: React.ReactNode }) {
+	if (!posthogProjectToken || !posthogHost) {
+		if (import.meta.env.DEV) {
+			const missingVariable = posthogProjectToken
+				? "VITE_PUBLIC_POSTHOG_HOST"
+				: "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN";
+			throw new Error(
+				`${missingVariable} variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once ${missingVariable} is configured`,
+			);
+		}
+
+		return children;
+	}
+
+	return (
+		<PostHogProvider
+			apiKey={posthogProjectToken}
+			options={{
+				api_host: posthogHost,
+				capture_exceptions: true,
+				debug: false,
+			}}
+		>
+			{children}
+		</PostHogProvider>
+	);
+}
+
+function PostHogIdentity() {
+	const { isLoaded, user } = useUser();
+	const posthog = usePostHog();
+	const identifiedUserId = useRef<string | null>(null);
+
+	useEffect(() => {
+		if (!isLoaded) return;
+
+		if (!user) {
+			if (identifiedUserId.current) {
+				posthog.reset();
+				identifiedUserId.current = null;
+			}
+			return;
+		}
+
+		if (identifiedUserId.current === user.id) return;
+
+		if (identifiedUserId.current) {
+			posthog.reset();
+		}
+
+		posthog.identify(user.id, {
+			email: user.primaryEmailAddress?.emailAddress,
+			first_name: user.firstName,
+			last_name: user.lastName,
+		});
+		identifiedUserId.current = user.id;
+	}, [isLoaded, posthog, user]);
+
+	return null;
+}
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	head: () => ({
@@ -55,32 +121,35 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<HeadContent />
 			</head>
 			<body className="font-sans antialiased wrap-anywhere">
-				<ClerkProvider>
-					<div id="root-layout">
-						<header>
-							<div className="frame">
-								<Navbar />
-								<Crosshair />
-								<Crosshair />
-							</div>
-						</header>
-						<main>
-							<div className="frame">{children}</div>
-						</main>
-					</div>
-					<TanStackDevtools
-						config={{
-							position: "bottom-right",
-						}}
-						plugins={[
-							{
-								name: "Tanstack Router",
-								render: <TanStackRouterDevtoolsPanel />,
-							},
-							TanStackQueryDevtools,
-						]}
-					/>
-				</ClerkProvider>
+				<PostHogRoot>
+					<ClerkProvider>
+						{posthogProjectToken && posthogHost ? <PostHogIdentity /> : null}
+						<div id="root-layout">
+							<header>
+								<div className="frame">
+									<Navbar />
+									<Crosshair />
+									<Crosshair />
+								</div>
+							</header>
+							<main>
+								<div className="frame">{children}</div>
+							</main>
+						</div>
+						<TanStackDevtools
+							config={{
+								position: "bottom-right",
+							}}
+							plugins={[
+								{
+									name: "Tanstack Router",
+									render: <TanStackRouterDevtoolsPanel />,
+								},
+								TanStackQueryDevtools,
+							]}
+						/>
+					</ClerkProvider>
+				</PostHogRoot>
 				<Scripts />
 			</body>
 		</html>
