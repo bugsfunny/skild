@@ -1,4 +1,5 @@
 node_modules
+.agents
 .DS_Store
 dist
 dist-ssr
@@ -22,3 +23,5 @@ pnpm-debug.log*
 .vinxi
 __unconfig*
 todos.json
+.firebase
+dataconnect/.dataconnect
